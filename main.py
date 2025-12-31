@@ -8,20 +8,18 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ==========================================
-# 🛑 ข้อมูลบอท (อัปเดต Token ใหม่แล้ว)
-TOKEN = '8502834547:AAHkJ_jpUfvLA3SiJoqwMhZRrICBmiM_fHw'
+# 🛑 ข้อมูลบอท (ใส่ Token ใหม่ให้แล้วครับ)
+TOKEN = '7721044180:AAGQ-HFdwfaG6QfZd9bkbo5ZRgSMflNDTW4' 
 GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
 
-# ตั้งค่า Logging ให้เห็นชัดๆ
+# ตั้งค่า Logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-
-# ลด Log ของ Server (Werkzeug) ไม่ให้รก
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 # --- ส่วนของ Web Server (Flask) ---
@@ -30,7 +28,7 @@ CORS(app)
 
 @app.route('/')
 def home():
-    return "✅ Bot & Server are Running!", 200
+    return "✅ Game Bot is Running!", 200
 
 @app.route('/submit_score', methods=['GET'])
 def submit_score():
@@ -42,9 +40,9 @@ def submit_score():
     if not user_id or not score:
         return jsonify({"status": "error", "message": "Missing parameters"}), 400
 
-    # สร้าง URL สำหรับยิง API Telegram เอง (แบบบ้านๆ แต่ได้ผล)
     import requests
     try:
+        # ยิงคะแนนกลับไปที่ Telegram
         api_url = f"https://api.telegram.org/bot{TOKEN}/setGameScore"
         params = {'user_id': user_id, 'score': score, 'force': True}
         if chat_id: params['chat_id'] = chat_id
@@ -58,10 +56,9 @@ def submit_score():
         return jsonify({"status": "error"}), 500
 
 def run_flask():
-    # ดึง Port จาก Environment Variable (จำเป็นสำหรับ Render)
     port = int(os.environ.get('PORT', 10000))
     try:
-        # use_reloader=False สำคัญมาก เพื่อไม่ให้ Flask สร้าง Process ซ้อน
+        # สำคัญ: ต้องเป็น debug=False, use_reloader=False เพื่อไม่ให้สร้าง thread ซ้อน
         app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
     except Exception as e:
         logger.error(f"Flask Error: {e}")
@@ -70,7 +67,11 @@ def run_flask():
 
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Command /game user: {update.effective_user.first_name}")
-    await update.message.reply_game(GAME_SHORT_NAME)
+    try:
+        await update.message.reply_game(GAME_SHORT_NAME)
+    except Exception as e:
+        await update.message.reply_text("⚠️ Error: เกมนี้ยังไม่ได้สร้างใน BotFather หรือชื่อผิด")
+        logger.error(f"Game Error: {e}")
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -81,27 +82,25 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     c_id = query.message.chat.id if query.message else ""
     m_id = query.message.message_id if query.message else ""
-    # สร้าง URL ที่แนบข้อมูลผู้เล่นไปด้วย
     final_url = f"{GAME_URL}?id={query.from_user.id}&chat_id={c_id}&message_id={m_id}"
     
     logger.info(f"Opening Game for {query.from_user.first_name}")
     await query.answer(url=final_url)
 
 def main():
-    # 1. เริ่ม Flask ใน Thread แยก (Daemon Thread)
+    # 1. รัน Web Server (Flask) ใน Thread รอง
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.daemon = True
     flask_thread.start()
     
-    # 2. เริ่ม Bot ใน Main Thread
-    logger.info("🤖 Bot Starting in Main Thread...")
+    # 2. รัน Bot ใน Main Thread
+    logger.info("🤖 New Bot Starting...")
     
     application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("game", start_game))
     application.add_handler(CommandHandler("start", start_game))
     application.add_handler(CallbackQueryHandler(button_callback))
 
-    # เริ่มการทำงานของบอท
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 if __name__ == '__main__':
