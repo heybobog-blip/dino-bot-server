@@ -8,8 +8,8 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ==========================================
-# 🛑 ข้อมูลบอท
-TOKEN = '8502834547:AAGJnG32qidGishilavggZgjAaHRikB67gU'
+# 🛑 ข้อมูลบอท (อัปเดต Token ใหม่แล้ว)
+TOKEN = '8502834547:AAHkJ_jpUfvLA3SiJoqwMhZRrICBmiM_fHw'
 GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
@@ -43,7 +43,6 @@ def submit_score():
         return jsonify({"status": "error", "message": "Missing parameters"}), 400
 
     # สร้าง URL สำหรับยิง API Telegram เอง (แบบบ้านๆ แต่ได้ผล)
-    # *หมายเหตุ: การใช้ requests ใน Flask thread ปลอดภัยกว่าเรียก bot instance ข้าม thread
     import requests
     try:
         api_url = f"https://api.telegram.org/bot{TOKEN}/setGameScore"
@@ -102,8 +101,7 @@ def main():
     application.add_handler(CommandHandler("start", start_game))
     application.add_handler(CallbackQueryHandler(button_callback))
 
-    # ปิด Signal Handling อัตโนมัติถ้ามีปัญหาบน Server บางประเภท
-    # แต่บน Render ปกติใช้ default ได้ ถ้าใช้ Start Command ถูกต้อง
+    # เริ่มการทำงานของบอท
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 if __name__ == '__main__':
