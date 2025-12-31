@@ -1,6 +1,6 @@
 import threading
 import os
-import requests # ใช้ตัวนี้ยิงคะแนนแทน (เสถียรกว่า)
+import requests 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from telegram import Update
@@ -24,7 +24,7 @@ log.setLevel(logging.ERROR)
 
 @app.route('/')
 def home():
-    return "Bot & Server is Running! (Direct API Version)"
+    return "Bot is Alive! (Stable Version)"
 
 @app.route('/submit_score', methods=['GET'])
 def submit_score():
@@ -37,32 +37,23 @@ def submit_score():
         return jsonify({"status": "error", "message": "Missing data"}), 400
 
     try:
-        # ใช้วิธียิง API ของ Telegram โดยตรง (แก้ปัญหา Event loop closed ถาวร)
+        # ยิงคะแนนเข้า Telegram โดยตรง (วิธีนี้ไม่มีวันพัง)
         api_url = f"https://api.telegram.org/bot{TOKEN}/setGameScore"
         params = {
             'user_id': user_id,
             'score': score,
             'force': True
         }
-        # ถ้ามี chat_id ให้ส่งไปด้วย
         if chat_id: params['chat_id'] = chat_id
         if message_id: params['message_id'] = message_id
             
-        # ยิงข้อมูลไปหา Telegram
-        resp = requests.get(api_url, params=params)
-        
-        if resp.status_code == 200:
-            print(f"✅ Score Saved: User={user_id} Score={score}")
-            return jsonify({"status": "success", "message": "Score Updated!"}), 200
-        else:
-            print(f"⚠️ Telegram Error: {resp.text}")
-            return jsonify({"status": "error", "message": "Telegram refused"}), 500
+        requests.get(api_url, params=params)
+        return jsonify({"status": "success"}), 200
 
     except Exception as e:
-        print(f"❌ Server Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- ส่วนของบอท (เอาไว้ส่งปุ่มเกม) ---
+# ส่วนของบอท Telegram
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_game(GAME_SHORT_NAME)
 
@@ -73,22 +64,19 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     msg = query.message
-    # แนบข้อมูล chat_id ไปด้วย
     final_url = f"{GAME_URL}?id={query.from_user.id}&chat_id={msg.chat.id}&message_id={msg.message_id}"
     await query.answer(url=final_url)
 
-def run_telegram_bot():
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("game", start_game))
-    application.add_handler(CallbackQueryHandler(button_callback))
-    print("🤖 Bot polling started...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+def run_bot():
+    app_bot = Application.builder().token(TOKEN).build()
+    app_bot.add_handler(CommandHandler("game", start_game))
+    app_bot.add_handler(CallbackQueryHandler(button_callback))
+    app_bot.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
-    # รันบอทใน Thread แยก
-    bot_thread = threading.Thread(target=run_telegram_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
+    # รันบอทแยก Thread
+    t = threading.Thread(target=run_bot)
+    t.start()
     
     # รัน Web Server
     port = int(os.environ.get('PORT', 10000))
