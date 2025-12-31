@@ -1,13 +1,14 @@
 import threading
 import os
-import requests 
+import requests
+import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ==========================================
-# 🛑 ข้อมูลบอทของคุณ
+# 🛑 ข้อมูลบอทของคุณ (เช็กความถูกต้องตรงนี้)
 TOKEN = '8502834547:AAGJnG32qidGishilavggZgjAaHRikB67gU'
 GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
@@ -17,8 +18,7 @@ GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 app = Flask(__name__)
 CORS(app)
 
-# ปิด Log สีแดงๆ ให้ดูสะอาดตา
-import logging
+# ปิด Log สีแดงๆ ของ Server ให้ดูสะอาดตา
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
@@ -38,7 +38,7 @@ def submit_score():
         return jsonify({"status": "error"}), 400
 
     try:
-        # ยิงคะแนนตรงเข้า Telegram (วิธีนี้เสถียรที่สุด ไม่ชนกับบอท)
+        # ยิงคะแนนตรงเข้า Telegram
         api_url = f"https://api.telegram.org/bot{TOKEN}/setGameScore"
         params = {
             'user_id': user_id,
@@ -57,35 +57,40 @@ def submit_score():
 
 # ส่วนของบอท Telegram
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # ฟังก์ชันนี้จะทำงานเมื่อพิมพ์ /game หรือ /start
     await update.message.reply_game(GAME_SHORT_NAME)
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    
+    # เช็กชื่อเกม (ป้องกันกดปุ่มเก่าแล้วพัง)
     if query.game_short_name != GAME_SHORT_NAME:
-        await query.answer("ผิดเกมครับ!", show_alert=True)
+        await query.answer("ผิดเกมครับ! (กรุณากด /game เพื่อขอเกมใหม่)", show_alert=True)
         return
 
     msg = query.message
-    # สร้างลิ้งก์เกม
+    # สร้างลิ้งก์เกมส่งกลับไปให้กดเล่น
     final_url = f"{GAME_URL}?id={query.from_user.id}&chat_id={msg.chat.id}&message_id={msg.message_id}"
     await query.answer(url=final_url)
 
-# ฟังก์ชันรัน Web Server (ให้ไปทำงานเบื้องหลัง)
+# ฟังก์ชันรัน Web Server
 def run_flask():
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
 
 if __name__ == '__main__':
-    # 1. ส่ง Flask ไปรันใน Thread แยก (เป็นคนงานหลังบ้าน)
+    # 1. รัน Server รอรับคะแนน
     t = threading.Thread(target=run_flask)
     t.daemon = True
     t.start()
     
-    # 2. ให้บอทเป็นพระเอก รันใน Main Thread (แก้ปัญหา RuntimeError ถาวร)
+    # 2. รันบอท Telegram
     print("🤖 Bot started...")
     app_bot = Application.builder().token(TOKEN).build()
+    
+    # เพิ่มทั้งคำสั่ง /game และ /start ให้กดได้ทั้งคู่
     app_bot.add_handler(CommandHandler("game", start_game))
+    app_bot.add_handler(CommandHandler("start", start_game))
+    
     app_bot.add_handler(CallbackQueryHandler(button_callback))
     app_bot.run_polling(allowed_updates=Update.ALL_TYPES)
-
-
