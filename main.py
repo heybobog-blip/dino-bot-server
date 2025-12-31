@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ==========================================
-# 🛑 ข้อมูลบอทของคุณ (เช็กความถูกต้องตรงนี้)
+# 🛑 ข้อมูลบอทของคุณ
 TOKEN = '8502834547:AAGJnG32qidGishilavggZgjAaHRikB67gU'
 GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
@@ -24,7 +24,7 @@ log.setLevel(logging.ERROR)
 
 @app.route('/')
 def home():
-    return "Bot is Running! (Final Version)"
+    return "Bot is Running! (Clean Version)"
 
 @app.route('/submit_score', methods=['GET'])
 def submit_score():
@@ -58,19 +58,25 @@ def submit_score():
 # ส่วนของบอท Telegram
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ฟังก์ชันนี้จะทำงานเมื่อพิมพ์ /game หรือ /start
+    print(f"👉 มีคนพิมพ์คำสั่งขอเล่นเกม: {update.effective_user.first_name}")
     await update.message.reply_game(GAME_SHORT_NAME)
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     
-    # เช็กชื่อเกม (ป้องกันกดปุ่มเก่าแล้วพัง)
+    # Debug: ปริ้นท์บอกใน Log ว่ามีการกดปุ่ม
+    print(f"🔘 มีการกดปุ่ม! ชื่อเกมที่ส่งมา: {query.game_short_name}")
+
+    # เช็กชื่อเกม
     if query.game_short_name != GAME_SHORT_NAME:
-        await query.answer("ผิดเกมครับ! (กรุณากด /game เพื่อขอเกมใหม่)", show_alert=True)
+        print(f"❌ ชื่อเกมไม่ตรง! (Code: {GAME_SHORT_NAME} vs Button: {query.game_short_name})")
+        await query.answer(f"ผิดเกมครับ! ของบอทคือ {GAME_SHORT_NAME} แต่ปุ่มนี้คือ {query.game_short_name}", show_alert=True)
         return
 
     msg = query.message
     # สร้างลิ้งก์เกมส่งกลับไปให้กดเล่น
     final_url = f"{GAME_URL}?id={query.from_user.id}&chat_id={msg.chat.id}&message_id={msg.message_id}"
+    print(f"🚀 กำลังส่งลิ้งก์เปิดเกม: {final_url}")
     await query.answer(url=final_url)
 
 # ฟังก์ชันรัน Web Server
@@ -85,10 +91,9 @@ if __name__ == '__main__':
     t.start()
     
     # 2. รันบอท Telegram
-    print("🤖 Bot started...")
+    print("🤖 Bot started... (Clean Version)")
     app_bot = Application.builder().token(TOKEN).build()
     
-    # เพิ่มทั้งคำสั่ง /game และ /start ให้กดได้ทั้งคู่
     app_bot.add_handler(CommandHandler("game", start_game))
     app_bot.add_handler(CommandHandler("start", start_game))
     
