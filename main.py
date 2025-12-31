@@ -2,16 +2,15 @@ import threading
 import os
 import requests
 import logging
-import asyncio
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ==========================================
-# 🛑 ตั้งค่า TOKEN และชื่อเกม (ต้องตรงเป๊ะ)
+# 🛑 ข้อมูลบอท
 TOKEN = '8502834547:AAGJnG32qidGishilavggZgjAaHRikB67gU'
-GAME_SHORT_NAME = 'zeinju_dino_run'  
+GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
 
@@ -19,13 +18,13 @@ GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 app = Flask(__name__)
 CORS(app)
 
-# ปิด Log สีแดงๆ ที่ไม่จำเป็น
+# ลด Log
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 @app.route('/')
 def home():
-    return "Bot & Game Server is Running! (Fixed Version)"
+    return "Bot is Running! (Thread Fixed)"
 
 @app.route('/submit_score', methods=['GET'])
 def submit_score():
@@ -44,58 +43,55 @@ def submit_score():
         if message_id: params['message_id'] = message_id
             
         requests.get(api_url, params=params)
-        print(f"✅ บันทึกคะแนน: {score}")
+        print(f"✅ Score Saved: {score}")
         return jsonify({"status": "success"}), 200
     except Exception as e:
-        print(f"❌ Error submit_score: {e}")
+        print(f"❌ Error: {e}")
         return jsonify({"status": "error"}), 500
 
 # --- ส่วนของบอท Telegram ---
 
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"👉 มีคำสั่งเล่นเกมจาก: {update.effective_user.first_name}")
+    print(f"👉 Command /game user: {update.effective_user.first_name}")
     await update.message.reply_game(GAME_SHORT_NAME)
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    print(f"🔘 กดปุ่มเกม: '{query.game_short_name}'")
+    print(f"🔘 Button: {query.game_short_name}")
     
-    # 1. เช็คชื่อเกม
     if query.game_short_name != GAME_SHORT_NAME:
-        await query.answer(f"ชื่อเกมผิด! ตั้งค่าเป็น {GAME_SHORT_NAME}", show_alert=True)
+        await query.answer(f"Wrong Game! Expect: {GAME_SHORT_NAME}", show_alert=True)
         return
 
-    # 2. สร้างลิ้งก์ (ดึง chat_id แบบปลอดภัย)
     c_id = query.message.chat.id if query.message else ""
     m_id = query.message.message_id if query.message else ""
     final_url = f"{GAME_URL}?id={query.from_user.id}&chat_id={c_id}&message_id={m_id}"
     
-    # 3. ส่งคำสั่งเปิดเกม (ใส่ try-except กันจอยุบ)
     try:
-        print(f"🚀 กำลังเปิด: {final_url}")
         await query.answer(url=final_url)
+        print(f"🚀 Open URL: Success")
     except Exception as e:
-        print(f"❌ เปิดเกมไม่ได้ Error: {e}")
-        await query.answer("เกิดข้อผิดพลาดในการเปิดเกม ลองใหม่อีกครั้ง", show_alert=True)
+        print(f"❌ Open URL Failed: {e}")
+        await query.answer("Error opening game", show_alert=True)
 
-# รันบอท (แยก Thread เพื่อไม่ให้ตีกับ Web Server)
-def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+# ฟังก์ชันรัน Flask (เอาไปไว้ Thread แยก)
+def run_flask():
+    port = int(os.environ.get('PORT', 10000))
+    # ปิด debug mode เพื่อไม่ให้มันแย่ง main thread
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+
+if __name__ == '__main__':
+    # 1. สั่งรัน Web Server ใน Background Thread (เป็นตัวรอง)
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # 2. สั่งรันบอทใน Main Thread (เป็นตัวหลัก - แก้ Error set_wakeup_fd)
+    print("🤖 Bot Starting in Main Thread...")
     app_bot = Application.builder().token(TOKEN).build()
     app_bot.add_handler(CommandHandler("game", start_game))
     app_bot.add_handler(CommandHandler("start", start_game))
     app_bot.add_handler(CallbackQueryHandler(button_callback))
     
-    print("🤖 Bot Ready (Polling)...")
+    # คำสั่งนี้ต้องอยู่บรรทัดสุดท้ายของ main
     app_bot.run_polling(allowed_updates=Update.ALL_TYPES)
-
-if __name__ == '__main__':
-    # สั่งรันบอทเป็น Background
-    t = threading.Thread(target=run_bot)
-    t.daemon = True
-    t.start()
-    
-    # สั่งรัน Web Server เป็นตัวหลัก
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
