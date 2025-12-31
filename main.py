@@ -13,11 +13,11 @@ GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
 
-# ตั้งค่า Web Server + เปิดอนุญาตข้ามเว็บ (CORS)
+# ตั้งค่า Web Server
 app = Flask(__name__)
-CORS(app) # บรรทัดนี้สำคัญมาก! ทำให้ GitHub ส่งคะแนนมาหา Render ได้
+CORS(app) # อนุญาตให้ข้ามเว็บได้
 
-# ปิด Log ที่ไม่จำเป็น
+# ปิด Log ของ Flask ไม่ให้รก
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
@@ -25,11 +25,10 @@ application = Application.builder().token(TOKEN).build()
 
 @app.route('/')
 def home():
-    return "Bot is running 24/7! (CORS Enabled)"
+    return "Bot is running 24/7! (Main Thread Fixed)"
 
 @app.route('/submit_score', methods=['GET'])
 def submit_score():
-    # รับค่า
     user_id = request.args.get('id')
     score = request.args.get('score')
     chat_id = request.args.get('chat_id')
@@ -43,7 +42,6 @@ def submit_score():
     try:
         score_int = int(score)
         
-        # ใช้ Async Loop เพื่อส่งคะแนนเข้า Telegram
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -72,22 +70,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     msg = query.message
-    # แนบข้อมูล chat_id ไปด้วย เพื่อให้ส่งคะแนนถูกห้อง
     final_url = f"{GAME_URL}?id={query.from_user.id}&chat_id={msg.chat.id}&message_id={msg.message_id}"
-    
     await query.answer(url=final_url)
 
-def run_telegram_bot():
+# ฟังก์ชันรัน Flask (เอาไปไว้ใน Thread แทน)
+def run_flask():
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
+
+if __name__ == '__main__':
+    # 1. สั่งให้เว็บไซต์ (Flask) ไปทำงานเงียบๆ ใน Thread แยก
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
+    # 2. ให้บอทเป็นพระเอก รันใน Main Thread (แก้ Runtime Error)
     print("🤖 Bot started polling...")
     application.add_handler(CommandHandler("game", start_game))
     application.add_handler(CallbackQueryHandler(button_callback))
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-if __name__ == '__main__':
-    # รันบอท Telegram ใน Thread แยก
-    t = threading.Thread(target=run_telegram_bot)
-    t.start()
-    
-    # รัน Web Server
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
