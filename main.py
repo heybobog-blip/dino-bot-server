@@ -9,7 +9,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 # ==========================================
 # 🛑 ข้อมูลบอทของคุณ
 TOKEN = '8502834547:AAGJnG32qidGishilavggZgjAaHRikB67gU'
-GAME_SHORT_NAME = 'zeinju_mario_run'
+GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
 
@@ -87,4 +87,5 @@ if __name__ == '__main__':
     app_bot.add_handler(CommandHandler("game", start_game))
     app_bot.add_handler(CallbackQueryHandler(button_callback))
     app_bot.run_polling(allowed_updates=Update.ALL_TYPES)
+
 
