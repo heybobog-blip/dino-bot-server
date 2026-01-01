@@ -1,16 +1,15 @@
 import threading
 import os
 import logging
-import requests  # ย้ายมาไว้ข้างบนให้เป็นระเบียบ
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ==========================================
-# 🛑 ข้อมูลบอท
-# ⚠️ แจ้งเตือน: Token เก่าของคุณหลุดแล้ว แนะนำให้ไปกด Revoke ใน BotFather แล้วเอาอันใหม่มาใส่ครับ
-TOKEN = '7721044180:AAGQ-HFdwfaG6QfZd9bkbo5ZRgSMflNDTW4' 
+# 🛑 ข้อมูลบอท (ใส่ Token ของคุณให้แล้วครับ)
+TOKEN = '7721044180:AAGQ-HFdwfaG6QfZd9bkbo5ZRgSMflNDTW4'
 GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
@@ -45,21 +44,16 @@ def submit_score():
         # ยิงคะแนนกลับไปที่ Telegram
         api_url = f"https://api.telegram.org/bot{TOKEN}/setGameScore"
         
-        # ✅ แก้ไขตรงนี้: เอา 'force': True ออก
-        # เพื่อให้ Telegram อัปเดตเฉพาะเมื่อคะแนนใหม่ "มากกว่า" คะแนนเดิมเท่านั้น
+        # ✅ ตั้งค่าส่งคะแนนแบบ High Score (ไม่ใช้ force=True)
         params = {
             'user_id': user_id, 
             'score': score
-            # 'force': True  <-- ลบทิ้ง ถ้าต้องการเก็บ High Score
         }
         
         if chat_id: params['chat_id'] = chat_id
         if message_id: params['message_id'] = message_id
             
         resp = requests.get(api_url, params=params)
-        
-        # เช็ค Response จาก Telegram เพื่อดูว่าคะแนนอัปเดตจริงไหม
-        # ถ้าคะแนนน้อยกว่าของเก่า Telegram จะไม่ error แต่จะบอกว่าไม่ได้อัปเดต
         logger.info(f"Score Submit: User={user_id} Score={score} Result={resp.text}")
         
         return jsonify({"status": "success", "telegram_response": resp.json()}), 200
@@ -91,7 +85,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"Wrong Game! Expect: {GAME_SHORT_NAME}", show_alert=True)
         return
 
-    # ดึง ID ของแชทและข้อความเพื่อใช้อ้างอิงตอนส่งคะแนนกลับ
     c_id = query.message.chat.id if query.message else ""
     m_id = query.message.message_id if query.message else ""
     
@@ -102,14 +95,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer(url=final_url)
 
 def main():
-    # 1. รัน Web Server (Flask) ใน Thread รอง
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.daemon = True
     flask_thread.start()
     
-    # 2. รัน Bot ใน Main Thread
     logger.info("🤖 New Bot Starting...")
-    
     application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("game", start_game))
     application.add_handler(CommandHandler("start", start_game))
@@ -124,4 +114,3 @@ if __name__ == '__main__':
         pass
     except Exception as e:
         logger.error(f"Fatal Error: {e}")
-
