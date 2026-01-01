@@ -8,8 +8,8 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ==========================================
-# 🛑 ข้อมูลบอท (ใส่ Token ของคุณให้แล้วครับ)
-TOKEN = '7721044180:AAGQ-HFdwfaG6QfZd9bkbo5ZRgSMflNDTW4'
+# 🛑 ข้อมูลบอท (อัปเดต Token ใหม่ให้แล้วครับ ✅)
+TOKEN = '7721044180:AAHdHZG2oV1cJumSc-tNSYyHxBiNPJUQjlI'
 GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
