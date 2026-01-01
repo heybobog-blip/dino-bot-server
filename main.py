@@ -1,15 +1,16 @@
 import threading
 import os
 import logging
-import asyncio
+import requests  # ย้ายมาไว้ข้างบนให้เป็นระเบียบ
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ==========================================
-# 🛑 ข้อมูลบอท (ใส่ Token ใหม่ให้แล้วครับ)
-TOKEN = '7721044180:AAGQ-HFdwfaG6QfZd9bkbo5ZRgSMflNDTW4' 
+# 🛑 ข้อมูลบอท
+# ⚠️ แจ้งเตือน: Token เก่าของคุณหลุดแล้ว แนะนำให้ไปกด Revoke ใน BotFather แล้วเอาอันใหม่มาใส่ครับ
+TOKEN = 'YOUR_NEW_TOKEN_HERE' 
 GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
@@ -40,17 +41,28 @@ def submit_score():
     if not user_id or not score:
         return jsonify({"status": "error", "message": "Missing parameters"}), 400
 
-    import requests
     try:
         # ยิงคะแนนกลับไปที่ Telegram
         api_url = f"https://api.telegram.org/bot{TOKEN}/setGameScore"
-        params = {'user_id': user_id, 'score': score, 'force': True}
+        
+        # ✅ แก้ไขตรงนี้: เอา 'force': True ออก
+        # เพื่อให้ Telegram อัปเดตเฉพาะเมื่อคะแนนใหม่ "มากกว่า" คะแนนเดิมเท่านั้น
+        params = {
+            'user_id': user_id, 
+            'score': score
+            # 'force': True  <-- ลบทิ้ง ถ้าต้องการเก็บ High Score
+        }
+        
         if chat_id: params['chat_id'] = chat_id
         if message_id: params['message_id'] = message_id
             
         resp = requests.get(api_url, params=params)
-        logger.info(f"Score Saved: User={user_id} Score={score} Resp={resp.status_code}")
-        return jsonify({"status": "success"}), 200
+        
+        # เช็ค Response จาก Telegram เพื่อดูว่าคะแนนอัปเดตจริงไหม
+        # ถ้าคะแนนน้อยกว่าของเก่า Telegram จะไม่ error แต่จะบอกว่าไม่ได้อัปเดต
+        logger.info(f"Score Submit: User={user_id} Score={score} Result={resp.text}")
+        
+        return jsonify({"status": "success", "telegram_response": resp.json()}), 200
     except Exception as e:
         logger.error(f"Error saving score: {e}")
         return jsonify({"status": "error"}), 500
@@ -58,7 +70,6 @@ def submit_score():
 def run_flask():
     port = int(os.environ.get('PORT', 10000))
     try:
-        # สำคัญ: ต้องเป็น debug=False, use_reloader=False เพื่อไม่ให้สร้าง thread ซ้อน
         app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
     except Exception as e:
         logger.error(f"Flask Error: {e}")
@@ -80,8 +91,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"Wrong Game! Expect: {GAME_SHORT_NAME}", show_alert=True)
         return
 
+    # ดึง ID ของแชทและข้อความเพื่อใช้อ้างอิงตอนส่งคะแนนกลับ
     c_id = query.message.chat.id if query.message else ""
     m_id = query.message.message_id if query.message else ""
+    
+    # ส่งพารามิเตอร์ไปกับ URL
     final_url = f"{GAME_URL}?id={query.from_user.id}&chat_id={c_id}&message_id={m_id}"
     
     logger.info(f"Opening Game for {query.from_user.first_name}")
