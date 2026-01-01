@@ -9,7 +9,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 
 # ==========================================
 # 🛑 ข้อมูลบอท (อัปเดต Token ใหม่ให้แล้วครับ ✅)
-TOKEN = '7721044180:AAHdHZG2oV1cJumSc-tNSYyHxBiNPJUQjlI'
+TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
@@ -114,3 +114,4 @@ if __name__ == '__main__':
         pass
     except Exception as e:
         logger.error(f"Fatal Error: {e}")
+
