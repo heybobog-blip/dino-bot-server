@@ -10,7 +10,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 # ==========================================
 # 🛑 ข้อมูลบอท
 # ⚠️ แจ้งเตือน: Token เก่าของคุณหลุดแล้ว แนะนำให้ไปกด Revoke ใน BotFather แล้วเอาอันใหม่มาใส่ครับ
-TOKEN = 'YOUR_NEW_TOKEN_HERE' 
+TOKEN = '7721044180:AAGQ-HFdwfaG6QfZd9bkbo5ZRgSMflNDTW4' 
 GAME_SHORT_NAME = 'zeinju_dino_run'
 GAME_URL = 'https://heybobog-blip.github.io/telegram-dino-game/'
 # ==========================================
@@ -124,3 +124,4 @@ if __name__ == '__main__':
         pass
     except Exception as e:
         logger.error(f"Fatal Error: {e}")
+
